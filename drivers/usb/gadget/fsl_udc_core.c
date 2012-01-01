@@ -1238,24 +1238,19 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
 
 		if (udc->vbus_active && !is_active) {
       cdev = get_gadget_data(&udc->gadget);
-			if(cdev)
-			{
 #ifdef CONFIG_MACH_SAMSUNG_P5
-				if(udc->driver)
-				{
-					cdev->mute_switch = 0;
-					printk("%s : %d cdev->mute_switch is 0 and disconnect.\n", __func__, __LINE__);
-				}
+			if(udc->driver)
+			{
+				cdev->mute_switch = 0;
+				printk("%s : %d cdev->mute_switch is 0 and disconnect.\n", __func__, __LINE__);
+			}
 #endif
 #ifndef CONFIG_MACH_SAMSUNG_P4LTE
-	      cdev->bMultiConfiguration = 0;
-  	    cdev->MacPC = 0;
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+      cdev->bMultiConfiguration = 0;
+      cdev->MacPC = 0;
 #endif
-			}
-      else
-			{
-        printk("[USB] fsl_vbus_session : cdev from get_gadget_data is null .\n");
-			}
+#endif
 			/* reset all internal Queues and inform client driver */
 			reset_queues(udc);
 			/* stop the controller and turn off the clocks */
@@ -1325,13 +1320,16 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 
 	udc = container_of(gadget, struct fsl_udc, gadget);
 	udc->softconnect = (is_on != 0);
-	if (can_pullup(udc))
-		fsl_writel((fsl_readl(&dr_regs->usbcmd) | USB_CMD_RUN_STOP),
-				&dr_regs->usbcmd);
-	else
-		fsl_writel((fsl_readl(&dr_regs->usbcmd) & ~USB_CMD_RUN_STOP),
-				&dr_regs->usbcmd);
-
+	if (udc_controller->transceiver) {
+		if (udc_controller->transceiver->state == OTG_STATE_B_PERIPHERAL) {
+			if (can_pullup(udc))
+				fsl_writel((fsl_readl(&dr_regs->usbcmd) | USB_CMD_RUN_STOP),
+						&dr_regs->usbcmd);
+			else
+				fsl_writel((fsl_readl(&dr_regs->usbcmd) & ~USB_CMD_RUN_STOP),
+						&dr_regs->usbcmd);
+		}
+	}
 	return 0;
 }
 
@@ -1597,6 +1595,11 @@ static void setup_received_irq(struct fsl_udc *udc,
 		if (setup->bRequestType != (USB_DIR_OUT | USB_TYPE_STANDARD
 						| USB_RECIP_DEVICE))
 			break;
+#ifdef CONFIG_ARCH_TEGRA
+		/* This delay is necessary for some windows drivers to
+		 * properly recognize the device */
+		mdelay(1);
+#endif
 		ch9setaddress(udc, wValue, wIndex, wLength);
 		return;
 
@@ -1842,14 +1845,14 @@ static void dtd_complete_irq(struct fsl_udc *udc)
 	int i, ep_num, direction, bit_mask, status;
 	struct fsl_ep *curr_ep;
 	struct fsl_req *curr_req, *temp_req;
-#ifdef CONFIG_USB_ANDROID_ACCESSORY	
-	struct usb_ctrlrequest *setup = &udc->local_setup_buff;
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+        struct usb_ctrlrequest *setup = &udc->local_setup_buff;
 
-	// Delay for Accessory mode. by wookwang.lee
-	if(setup->bRequest==ACCESSORY_GET_PROTOCOL || setup->bRequest==ACCESSORY_SEND_STRING || setup->bRequest==ACCESSORY_START)
-	{
-		udelay(100);
-	}
+        // Delay for Accessory mode. by wookwang.lee
+        if(setup->bRequest==ACCESSORY_GET_PROTOCOL || setup->bRequest==ACCESSORY_SEND_STRING || setup->bRequest==ACCESSORY_START)
+        {
+                udelay(100);
+        }
 #endif
 
 	/* Clear the bits in the register */
@@ -2917,16 +2920,18 @@ static int fsl_udc_suspend(struct platform_device *pdev, pm_message_t state)
 static int fsl_udc_resume(struct platform_device *pdev)
 {
     if (udc_controller->transceiver) {
+
         if (!(fsl_readl(&usb_sys_regs->vbus_wakeup) & USB_SYS_ID_PIN_STATUS)) {
             /* If ID status is low means host is connected, return */
-            return 0;
+	    return 0;
         }
-	/* check for VBUS */		
+        /* enable clock and check for VBUS */
+		fsl_udc_clk_resume();		
         if (!(fsl_readl(&usb_sys_regs->vbus_wakeup) & USB_SYS_VBUS_STATUS)) {
             /* if there is no VBUS then power down the clocks and return */
+			fsl_udc_clk_suspend();
             return 0;
         } else {
-	     fsl_udc_clk_resume();        
             /* Detected VBUS set the transceiver state to device mode */
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 	    udc_controller->vbus_active = 1;
