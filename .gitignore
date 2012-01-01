@@ -23,8 +23,6 @@
 *.gcno
 *.str.tmp
 *.cpio
-scripts/
-Documentation/
 
 #
 # Top-level generic files
@@ -55,6 +53,9 @@ arch/arm/boot/compressed/vmlinux
 arch/arm/boot/compressed/piggy.gzip
 arch/arm/boot/Image
 arch/arm/boot/zImage
+
+kernel/config_data.h
+
 
 # stgit generated dirs
 patches-*
