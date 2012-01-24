@@ -2,11 +2,9 @@
  * drivers/video/tegra/host/bus.c
  *
  * Copyright (C) 2010 Google, Inc.
+ * Author: Erik Gilling <konkers@google.com>
  *
- * Author:
- *	Erik Gilling <konkers@google.com>
- *
- * based heavily on drivers/base/platform.c
+ * Copyright (C) 2010-2011 NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -20,8 +18,7 @@
  */
 
 #include <linux/pm_runtime.h>
-
-#include <mach/nvhost.h>
+#include <linux/nvhost.h>
 
 #include "dev.h"
 
@@ -206,7 +203,6 @@ static int nvhost_bus_match(struct device *_dev, struct device_driver *drv)
 {
 	struct nvhost_device *dev = to_nvhost_device(_dev);
 
-	pr_info("host1x: %s %s\n", dev->name, drv->name);
 	return !strncmp(dev->name, drv->name, strlen(drv->name));
 }
 

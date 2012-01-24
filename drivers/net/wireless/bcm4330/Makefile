@@ -8,9 +8,6 @@ EXTRA_CFLAGS += -Dlinux -DLINUX -DBDC -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD \
 # For Samsung Aries only.
 EXTRA_CFLAGS += -DCUSTOMER_HW_SAMSUNG
 
-# To Enable Packet filter as White list instead of Black list 
-EXTRA_CFLAGS += -DWHITELIST_PKT_FILTER 
-
 # Print out CHIP REV
 EXTRA_CFLAGS += -DCHECK_CHIP_REV
 
@@ -45,10 +42,8 @@ EXTRA_CFLAGS += -DDHD_USE_STATIC_BUF
 
 EXTRA_CFLAGS += -DCONFIG_CONTROL_PM
 
-# For WiFi Direct
-EXTRA_CFLAGS += -DUSE_WIFI_DIRECT -DDTIM_CNT1
-# For WiFi Direct - Beyond honeycomb 3.2 version
-EXTRA_CFLAGS += -DWIFI_DIRECT_HC32
+# For WiFi Direct and for: Beyond honeycomb 3.2 version
+EXTRA_CFLAGS += -DUSE_WIFI_DIRECT -DWIFI_DIRECT_HC32
 
 # P2P ENABLE
 #EXTRA_CFLAGS += -DWLP2P
@@ -72,8 +67,6 @@ EXTRA_CFLAGS += -DSUPPORT_KT
 endif
 
 ifndef CONFIG_TARGET_LOCALE_KOR
-# MobileAP fw_reload
-EXTRA_CFLAGS += -DMOBILEAP_RELOAD
 # 2.4G only scan for the initial broad scan
 EXTRA_CFLAGS += -DUSE_INITIAL_2G_SCAN
 endif
@@ -93,16 +86,13 @@ EXTRA_CFLAGS += -DUSE_CID_CHECK
 endif
 endif
 
-ifdef CONFIG_MACH_SAMSUNG_P4LTE
-# Firmware RELOAD for mobile ap
-EXTRA_CFLAGS += -DMOBILEAP_RELOAD
-
-# MOBILE AP Extensions (Verizon Requirements)
-EXTRA_CFLAGS += -DHOTSPOT_VERIZON
-endif
-
 # DTIM=1 (Remove here for DTIM=3)
 EXTRA_CFLAGS += -DDTIM_CNT1
+
+# Firmware RELOAD for mobile ap
+ifdef CONFIG_MACH_SAMSUNG_P4LTE
+EXTRA_CFLAGS += -DMOBILEAP_RELOAD
+endif
 
 EXTRA_CFLAGS += -DUSE_FW_TRACE
 

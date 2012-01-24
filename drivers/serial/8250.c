@@ -42,7 +42,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <linux/ratelimit.h>
 
 #include "8250.h"
 
@@ -253,7 +252,8 @@ static const struct serial8250_config uart_config[] = {
 		.fifo_size	= 128,
 		.tx_loadsz	= 128,
 		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
-		.flags		= UART_CAP_FIFO | UART_CAP_EFR | UART_CAP_SLEEP,
+		/* UART_CAP_EFR breaks billionon CF bluetooth card. */
+		.flags		= UART_CAP_FIFO | UART_CAP_SLEEP,
 	},
 	[PORT_16654] = {
 		.name		= "ST16654",
@@ -1646,9 +1646,6 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 		l = l->next;
 
 		if (l == i->head && pass_counter++ > PASS_LIMIT) {
-			/* If we hit this, we're dead. */
-			printk_ratelimited(KERN_ERR "serial8250: too much work for "
-				"irq%d\n", irq);
 			break;
 		}
 	} while (l != end);

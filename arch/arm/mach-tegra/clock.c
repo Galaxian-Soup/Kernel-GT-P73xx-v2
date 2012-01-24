@@ -347,14 +347,11 @@ struct clk *clk_get_parent(struct clk *c)
 }
 EXPORT_SYMBOL(clk_get_parent);
 
-int clk_set_rate(struct clk *c, unsigned long rate)
+int clk_set_rate_locked(struct clk *c, unsigned long rate)
 {
 	int ret = 0;
-	unsigned long flags;
 	unsigned long old_rate;
 	long new_rate;
-
-	clk_lock_save(c, flags);
 
 	if (!c->ops || !c->ops->set_rate) {
 		ret = -ENOSYS;
@@ -391,6 +388,16 @@ int clk_set_rate(struct clk *c, unsigned long rate)
 		ret = tegra_dvfs_set_rate(c, rate);
 
 out:
+	return ret;
+}
+
+int clk_set_rate(struct clk *c, unsigned long rate)
+{
+	int ret;
+	unsigned long flags;
+
+	clk_lock_save(c, flags);
+	ret = clk_set_rate_locked(c, rate);
 	clk_unlock_restore(c, flags);
 	return ret;
 }
@@ -516,6 +523,22 @@ void tegra_periph_reset_assert(struct clk *c)
 }
 EXPORT_SYMBOL(tegra_periph_reset_assert);
 
+int tegra_is_clk_enabled(struct clk *c)
+{
+	return c->refcnt;
+}
+EXPORT_SYMBOL(tegra_is_clk_enabled);
+
+void tegra_clk_shared_bus_update(struct clk *c)
+{
+	unsigned long flags;
+
+	clk_lock_save(c, flags);
+	if (c->ops && c->ops->shared_bus_update)
+		c->ops->shared_bus_update(c);
+	clk_unlock_restore(c, flags);
+}
+
 void __init tegra_init_clock(void)
 {
 	tegra2_init_clocks();
@@ -566,6 +589,27 @@ void tegra_sdmmc_tap_delay(struct clk *c, int delay) {
 	clk_lock_save(c, flags);
 	tegra2_sdmmc_tap_delay(c, delay);
 	clk_unlock_restore(c, flags);
+}
+
+/* Several extended clock configuration bits (e.g., clock routing, clock
+ * phase control) are included in PLL and peripheral clock source
+ * registers. */
+int tegra_clk_cfg_ex(struct clk *c, enum tegra_clk_ex_param p, u32 setting)
+{
+        int ret = 0;
+        unsigned long flags;
+
+        clk_lock_save(c, flags);
+
+        if (!c->ops || !c->ops->clk_cfg_ex) {
+                ret = -ENOSYS;
+                goto out;
+        }
+        ret = c->ops->clk_cfg_ex(c, p, setting);
+
+out:
+        clk_unlock_restore(c, flags);
+        return ret;
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -720,12 +764,15 @@ static void clock_tree_show_one(struct seq_file *s, struct clk *c, int level)
 		}
 	}
 
-	seq_printf(s, "%*s%c%c%-*s %-6s %-3d %-8s %-10lu\n",
+	seq_printf(s, "%*s%c%c%-*s %-6s %-3d %-8s %-10lu",
 		level * 3 + 1, "",
 		c->rate > c->max_rate ? '!' : ' ',
 		!c->set ? '*' : ' ',
 		30 - level * 3, c->name,
 		state, c->refcnt, div, clk_get_rate_all_locked(c));
+	if (c->parent && !list_empty(&c->parent->shared_bus_list))
+		seq_printf(s, " (%lu)", c->u.shared_bus_user.rate);
+	seq_printf(s, "\n");
 
 	if (c->dvfs)
 		dvfs_show_one(s, c->dvfs, level + 1);
@@ -741,8 +788,8 @@ static void clock_tree_show_one(struct seq_file *s, struct clk *c, int level)
 static int clock_tree_show(struct seq_file *s, void *data)
 {
 	struct clk *c;
-	seq_printf(s, "   clock                          state  ref div      rate\n");
-	seq_printf(s, "--------------------------------------------------------------\n");
+	seq_printf(s, "   clock                          state  ref div      rate      (shared_rate)\n");
+	seq_printf(s, "-----------------------------------------------------------------------------\n");
 
 	mutex_lock(&clock_list_lock);
 

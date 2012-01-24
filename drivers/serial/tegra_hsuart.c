@@ -1296,7 +1296,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	u->regshift = 2;
 
 	t->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR_OR_NULL(t->clk)) {
+	if (!t->clk) {
 		dev_err(&pdev->dev, "Couldn't get the clock\n");
 		goto fail;
 	}

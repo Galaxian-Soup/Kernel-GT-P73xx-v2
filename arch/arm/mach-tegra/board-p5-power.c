@@ -285,6 +285,7 @@ static struct tegra_suspend_platform_data p3_suspend_data = {
 	TEGRA_WAKE_GPIO_PY6,
 #endif
 	.wake_any	= TEGRA_WAKE_GPIO_PU6 | TEGRA_WAKE_RTC_ALARM  | TEGRA_WAKE_GPIO_PI5,
+	.cpu_lp2_min_residency = 2000,
 };
 
 int __init p3_regulator_init(void)

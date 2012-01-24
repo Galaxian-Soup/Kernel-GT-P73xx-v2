@@ -452,6 +452,13 @@ struct ext_slave_descr *hscdtd004a_get_slave_descr(void);
 #undef get_compass_slave_descr
 #define get_compass_slave_descr hscdtd004a_get_slave_descr
 #endif
+
+#ifdef CONFIG_SENSORS_MPU_HSCDTD00XX	/* Alps compass */
+struct ext_slave_descr *hscdtd00xx_get_slave_descr(void);
+#undef get_compass_slave_descr
+#define get_compass_slave_descr hscdtd00xx_get_slave_descr
+#endif
+
 /*
     Pressure
 */

@@ -24,6 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <asm/clkdev.h>
+#include <mach/clk.h>
 
 #define DIV_BUS			(1 << 0)
 #define DIV_U71			(1 << 1)
@@ -71,7 +72,9 @@ struct clk_ops {
 	int		(*set_parent)(struct clk *, struct clk *);
 	int		(*set_rate)(struct clk *, unsigned long);
 	long		(*round_rate)(struct clk *, unsigned long);
+	int             (*clk_cfg_ex)(struct clk *, enum tegra_clk_ex_param, u32);
 	void		(*reset)(struct clk *, bool);
+	void		(*shared_bus_update)(struct clk *);
 };
 
 enum clk_state {
@@ -181,6 +184,8 @@ int clk_reparent(struct clk *c, struct clk *parent);
 void tegra_clk_init_from_table(struct tegra_clk_init_table *table);
 void clk_set_cansleep(struct clk *c);
 unsigned long clk_get_rate_locked(struct clk *c);
+int clk_set_rate_locked(struct clk *c, unsigned long rate);
+void tegra_clk_shared_bus_update(struct clk *c);
 void tegra2_sdmmc_tap_delay(struct clk *c, int delay);
 
 #ifdef CONFIG_CPU_FREQ

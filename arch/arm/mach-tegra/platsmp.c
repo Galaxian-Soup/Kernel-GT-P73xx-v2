@@ -90,10 +90,11 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 #endif
 
 	/* Avoid timer calibration on slave cpus. Use the value calibrated
-	* on master cpu. This reduces the bringup time for each slave cpu
-	* by around 260ms.
-	*/
-  	 preset_lpj = loops_per_jiffy;
+	 * on master cpu. This reduces the bringup time for each slave cpu
+	 * by around 260ms.
+	 */
+	preset_lpj = loops_per_jiffy;
+
 	/*
 	 * set synchronisation state between this boot processor
 	 * and the secondary one
@@ -110,7 +111,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	smp_wmb();
 
-#if CONFIG_TRUSTED_FOUNDATIONS
+#ifdef CONFIG_TRUSTED_FOUNDATIONS
 	callGenericSMC(0xFFFFFFFC, 0xFFFFFFE5, boot_vector);
 #else
 	old_boot_vector = readl(vector_base);

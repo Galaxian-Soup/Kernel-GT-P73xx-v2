@@ -438,13 +438,12 @@ static __initdata struct tegra_clk_init_table p3_clk_init_table[] = {
 	{ "pll_p_out4",	"pll_p",	24000000,	true },
 	{ "pwm",	"clk_32k",	32768,		false},
 	{ "pll_c",	"clk_m",	586000000,	true},
-	{ "pll_a",	NULL,		11289600,	false},
-	{ "pll_a_out0",	NULL,		11289600,	false},
-	{ "clk_dev1",   "pll_a_out0",   0,              true},
-	{ "i2s1",	"pll_a_out0",	11289600,	false},
-	{ "i2s2",	"pll_a_out0",	11289600,	false},
-	{ "audio",	"pll_a_out0",	11289600,	false},
-	{ "audio_2x",	"audio",	22579200,	false},
+	{ "pll_a",	NULL,		11289600,	true},
+	{ "pll_a_out0",	NULL,		11289600,	true},
+	{ "i2s1",	"pll_a_out0",	11289600,	true},
+	{ "i2s2",	"pll_a_out0",	11289600,	true},
+	{ "audio",	"pll_a_out0",	11289600,	true},
+	{ "audio_2x",	"audio",	22579200,	true},
 	{ "spdif_out",	"pll_a_out0",	5644800,	false},
 	{ "vde",	"pll_m",	240000000,	false},
 	{ NULL,		NULL,		0,		0},
@@ -545,7 +544,7 @@ static const struct tegra_pingroup_config i2c2_gen2 = {
 static struct tegra_i2c_platform_data p3_i2c2_platform_data = {
 	.adapter_nr	= 1,
 	.bus_count	= 2,
-	.bus_clk_rate	= { 100000, 10000 },
+	.bus_clk_rate	= { 400000, 10000 },
 	.bus_mux	= { &i2c2_ddc, &i2c2_gen2 },
 	.bus_mux_len	= { 1, 1 },
 	.slave_addr = 0x00FC,
@@ -1058,11 +1057,13 @@ static struct platform_device watchdog_device = {
 
 static struct platform_device *p3_devices[] __initdata = {
 	&watchdog_device,
+	&androidusb_device,
 	&p3_rndis_device,
 	&debug_uart,
 	&tegra_uarta_device,
 	&tegra_btuart_device,
 	&pmu_device,
+	&tegra_udc_device,
 	&tegra_gart_device,
 	&tegra_aes_device,
 	&p3_keys_device,
@@ -1532,7 +1533,6 @@ static struct tegra_ehci_platform_data tegra_ehci_pdata[] = {
 		.phy_config = &hsic_phy_config,
 		.operating_mode = TEGRA_USB_HOST,
 		.power_down_on_bus_suspend = 0,
-		.phy_type = TEGRA_USB_PHY_TYPE_LINK_ULPI,
 	},
 	[2] = {
 		.phy_config = &utmi_phy_config[1],
@@ -1634,12 +1634,8 @@ static void p3_usb_init(void)
 	}
 	gpio_direction_output(GPIO_ACCESSORY_EN, 0);
 
-	/* OTG should be the first to be registered */
 	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
 	platform_device_register(&tegra_otg_device);
-
-	platform_device_register(&androidusb_device);
-	platform_device_register(&tegra_udc_device);
 
 	/* create a fake MAC address from our serial number.
 	 * first byte is 0x02 to signify locally administered.
@@ -1708,27 +1704,6 @@ void p3_wlan_gpio_disable(void)
 
 }
 EXPORT_SYMBOL(p3_wlan_gpio_disable);
-
-void p3_wlan_reset_enable(void)
-{
-	printk(KERN_DEBUG "wlan reset enable OK\n");
-	gpio_set_value(GPIO_WLAN_EN, 1);
-	mdelay(100);
-	printk(KERN_DEBUG "wlan get value  (%d)\n",
-	gpio_get_value(GPIO_WLAN_EN));
-}
-EXPORT_SYMBOL(p3_wlan_reset_enable);
-
-void p3_wlan_reset_disable(void)
-{
-	printk(KERN_DEBUG "wlan reset disable OK\n");
-	gpio_set_value(GPIO_WLAN_EN, 0);
-	mdelay(100);
-	printk(KERN_DEBUG "wlan get value  (%d)\n",
-	gpio_get_value(GPIO_WLAN_EN));
-
-}
-EXPORT_SYMBOL(p3_wlan_reset_disable);
 
 int	is_JIG_ON_high()
 {

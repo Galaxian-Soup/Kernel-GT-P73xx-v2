@@ -15,10 +15,6 @@
 
 #include "power.h"
 
-#ifdef CONFIG_MACH_SAMSUNG_P4TMO
-#define CONFIG_DVFS_LIMIT
-#endif
-
 #ifdef CONFIG_DVFS_LIMIT
 extern void tegra_cpu_lock_speed(int min_rate, int timeout_ms);
 extern void tegra_cpu_unlock_speed(void);

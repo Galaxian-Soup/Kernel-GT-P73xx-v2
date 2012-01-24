@@ -157,6 +157,8 @@ static void __iomem *misc_gp_hidrev_base = IO_ADDRESS(TEGRA_APB_MISC_BASE);
 
 #define MISC_GP_HIDREV			0x804
 
+static void tegra2_clk_shared_bus_update(struct clk *bus);
+
 /*
  * Some peripheral clocks share an enable bit, so refcount the enable bits
  * in registers CLK_ENABLE_L, CLK_ENABLE_H, and CLK_ENABLE_U
@@ -511,6 +513,7 @@ static struct clk_ops tegra_virtual_sclk_ops = {
 	.init = tegra2_virtual_sclk_init,
 	.set_rate = tegra2_virtual_sclk_set_rate,
 	.round_rate = tegra2_virtual_sclk_round_rate,
+	.shared_bus_update = tegra2_clk_shared_bus_update,
 };
 
 /* virtual cop clock functions. Used to acquire the fake 'cop' clock to
@@ -1171,6 +1174,7 @@ static struct clk_ops tegra_emc_clk_ops = {
 	.set_rate		= &tegra2_emc_clk_set_rate,
 	.round_rate		= &tegra2_emc_clk_round_rate,
 	.reset			= &tegra2_periph_clk_reset,
+	.shared_bus_update	= &tegra2_clk_shared_bus_update,
 };
 
 /* Clock doubler ops */
@@ -1277,13 +1281,13 @@ static int tegra2_cdev_clk_set_parent(struct clk *c, struct clk *p)
 	}
 	else {
 		/* Get pinmux setting for cdev1 and cdev2 from APB_MISC reg */
-	if (!strcmp(c->name, "clk_dev2"))
-		pg = TEGRA_PINGROUP_CDEV2;
+		if (!strcmp(c->name, "clk_dev2"))
+			pg = TEGRA_PINGROUP_CDEV2;
 
-	val = tegra_pinmux_get_func(pg);
-	for (sel = c->inputs; sel->input != NULL; sel++) {
+		val = tegra_pinmux_get_func(pg);
+		for (sel = c->inputs; sel->input != NULL; sel++) {
 			if (val == sel->value) {
-			mux = sel;
+				mux = sel;
 				BUG_ON(!mux);
 				clk_reparent(c, mux->input);
 				return 0;
@@ -1346,7 +1350,7 @@ static struct clk_ops tegra_cdev_clk_ops = {
  * enabled shared_bus_user clock, with a minimum value set by the
  * shared bus.
  */
-static void tegra_clk_shared_bus_update(struct clk *bus)
+static void tegra2_clk_shared_bus_update(struct clk *bus)
 {
 	struct clk *c;
 	unsigned long rate = bus->min_rate;
@@ -1357,8 +1361,8 @@ static void tegra_clk_shared_bus_update(struct clk *bus)
 			rate = max(c->u.shared_bus_user.rate, rate);
 	}
 
-	if (rate != clk_get_rate(bus))
-		clk_set_rate(bus, rate);
+	if (rate != clk_get_rate_locked(bus))
+		clk_set_rate_locked(bus, rate);
 };
 
 static void tegra_clk_shared_bus_init(struct clk *c)
@@ -2235,6 +2239,10 @@ struct clk tegra_list_periph_clks[] = {
 	PERIPH_CLK("i2c2",	"tegra-i2c.1",		NULL,	54,	0x198,	0x31E,	26000000,  mux_pllp_pllc_pllm_clkm,	MUX | DIV_U16 | PERIPH_ON_APB),
 	PERIPH_CLK("i2c3",	"tegra-i2c.2",		NULL,	67,	0x1b8,	0x31E,	26000000,  mux_pllp_pllc_pllm_clkm,	MUX | DIV_U16 | PERIPH_ON_APB),
 	PERIPH_CLK("dvc",	"tegra-i2c.3",		NULL,	47,	0x128,	0x31E,	26000000,  mux_pllp_pllc_pllm_clkm,	MUX | DIV_U16 | PERIPH_ON_APB),
+	PERIPH_CLK("i2c1_i2c",	"tegra-i2c.0",		"i2c",	0,	0,	0x31E,	72000000,  mux_pllp_out3,			PERIPH_ON_APB),
+	PERIPH_CLK("i2c2_i2c",	"tegra-i2c.1",		"i2c",	0,	0,	0x31E,	72000000,  mux_pllp_out3,			PERIPH_ON_APB),
+	PERIPH_CLK("i2c3_i2c",	"tegra-i2c.2",		"i2c",	0,	0,	0x31E,	72000000,  mux_pllp_out3,			PERIPH_ON_APB),
+	PERIPH_CLK("dvc_i2c",	"tegra-i2c.3",		"i2c",	0,	0,	0x31E,	72000000,  mux_pllp_out3,			PERIPH_ON_APB),
 	PERIPH_CLK("uarta",	"uart.0",		NULL,	6,	0x178,	0x31E,	600000000, mux_pllp_pllc_pllm_clkm,	MUX | PERIPH_ON_APB),
 	PERIPH_CLK("uartb",	"uart.1",		NULL,	7,	0x17c,	0x31E,	600000000, mux_pllp_pllc_pllm_clkm,	MUX | PERIPH_ON_APB),
 	PERIPH_CLK("uartc",	"uart.2",		NULL,	55,	0x1a0,	0x31E,	600000000, mux_pllp_pllc_pllm_clkm,	MUX | PERIPH_ON_APB),
@@ -2251,8 +2259,8 @@ struct clk tegra_list_periph_clks[] = {
 	PERIPH_CLK("tvo",	"tvo",			NULL,	49,	0x188,	0x31E,	250000000, mux_pllp_plld_pllc_clkm,	MUX | DIV_U71), /* requires min voltage */
 	PERIPH_CLK("hdmi",	"hdmi",			NULL,	51,	0x18c,	0x31E,	600000000, mux_pllp_plld_pllc_clkm,	MUX | DIV_U71), /* requires min voltage */
 	PERIPH_CLK("tvdac",	"tvdac",		NULL,	53,	0x194,	0x31E,	250000000, mux_pllp_plld_pllc_clkm,	MUX | DIV_U71), /* requires min voltage */
-	PERIPH_CLK("disp1",	"tegradc.0",		NULL,	27,	0x138,	0x31E,	600000000, mux_pllp_plld_pllc_clkm,	MUX | DIV_U71), /* scales with voltage and process_id */
-	PERIPH_CLK("disp2",	"tegradc.1",		NULL,	26,	0x13c,	0x31E,	600000000, mux_pllp_plld_pllc_clkm,	MUX | DIV_U71), /* scales with voltage and process_id */
+	PERIPH_CLK("disp1",     "tegradc.0",            NULL,   27,     0x138,  0x31E,  600000000, mux_pllp_plld_pllc_clkm,     MUX), /* scales with voltage and process_id */
+	PERIPH_CLK("disp2",     "tegradc.1",            NULL,   26,     0x13c,  0x31E,  600000000, mux_pllp_plld_pllc_clkm,     MUX), /* scales with voltage and process_id */
 	PERIPH_CLK("usbd",	"fsl-tegra-udc",	NULL,	22,	0,	0x31E,	480000000, mux_clk_m,			0), /* requires min voltage */
 	PERIPH_CLK("usb2",	"tegra-ehci.1",		"usb2",	58,	0,	0x31E,	480000000, mux_clk_m,			0), /* requires min voltage */
 	PERIPH_CLK("usb2min",	"tegra-ehci.1",		"usb2min",	95,	0,	0x31E,	60000000, mux_clk_m,			0), /* requires min voltage */
@@ -2278,7 +2286,9 @@ struct clk tegra_list_shared_clks[] = {
 	SHARED_CLK("disp1.emc",	"tegradc.0",		"emc",	&tegra_clk_emc),
 	SHARED_CLK("disp2.emc",	"tegradc.1",		"emc",	&tegra_clk_emc),
 	SHARED_CLK("hdmi.emc",	"hdmi",			"emc",	&tegra_clk_emc),
-	SHARED_CLK("host.emc",	"tegra_grhost",		"emc",	&tegra_clk_emc),
+	SHARED_CLK("3d.emc",    "tegra_gr3d",           "emc",  &tegra_clk_emc),
+	SHARED_CLK("2d.emc",    "tegra_gr2d",           "emc",  &tegra_clk_emc),
+	SHARED_CLK("mpe.emc",   "tegra_mpe",            "emc",  &tegra_clk_emc),
 	SHARED_CLK("usbd.emc",	"fsl-tegra-udc",	"emc",	&tegra_clk_emc),
 	SHARED_CLK("usb1.emc",	"tegra-ehci.0",		"emc",	&tegra_clk_emc),
 	SHARED_CLK("usb2.emc",	"tegra-ehci.1",		"emc",	&tegra_clk_emc),
@@ -2315,11 +2325,11 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("pwm", "tegra_pwm.1", NULL),
 	CLK_DUPLICATE("pwm", "tegra_pwm.2", NULL),
 	CLK_DUPLICATE("pwm", "tegra_pwm.3", NULL),
-	CLK_DUPLICATE("host1x", "tegra_grhost", "host1x"),
-	CLK_DUPLICATE("2d", "tegra_grhost", "gr2d"),
-	CLK_DUPLICATE("3d", "tegra_grhost", "gr3d"),
-	CLK_DUPLICATE("epp", "tegra_grhost", "epp"),
-	CLK_DUPLICATE("mpe", "tegra_grhost", "mpe"),
+	CLK_DUPLICATE("host1x", "tegra_host1x", "host1x"),
+	CLK_DUPLICATE("2d", "tegra_gr2d", "gr2d"),
+	CLK_DUPLICATE("3d", "tegra_gr3d", "gr3d"),
+	CLK_DUPLICATE("epp", "tegra_gr2d", "epp"),
+	CLK_DUPLICATE("mpe", "tegra_mpe", "mpe"),
 	CLK_DUPLICATE("cop", "tegra-avp", "cop"),
 	CLK_DUPLICATE("vde", "tegra-aes", "vde"),
 	CLK_DUPLICATE("sbc1", "tegra_spi_slave.0", NULL),
@@ -2396,20 +2406,14 @@ static struct tegra_sku_rate_limit sku_limits[] =
 
 	RATE_LIMIT("sclk",	240000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
 	RATE_LIMIT("hclk",	240000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
-	RATE_LIMIT("avp.sclk",	240000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
-	RATE_LIMIT("bsea.sclk",	240000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
 	RATE_LIMIT("vde",	240000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
 	RATE_LIMIT("3d",	300000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
-	RATE_LIMIT("mpe",       300000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
-
 	RATE_LIMIT("host1x",	108000000, 0x0F),
 
 	RATE_LIMIT("sclk",	300000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 	RATE_LIMIT("virt_sclk",	300000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 	RATE_LIMIT("hclk",	300000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 	RATE_LIMIT("pclk",	150000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
-	RATE_LIMIT("avp.sclk",	300000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
-	RATE_LIMIT("bsea.sclk",	300000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 	RATE_LIMIT("vde",	300000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 	RATE_LIMIT("3d",	400000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 };
