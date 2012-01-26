@@ -24,6 +24,7 @@
 
 #include <linux/kallsyms.h>
 #include <linux/ptrace.h>
+#include <linux/ratelimit.h>
 
 #ifndef arch_irq_stat_cpu
 #define arch_irq_stat_cpu(cpu) 0
@@ -166,7 +167,7 @@ void kernel_sec_set_upload_magic_number(void)
 #else
 	to_io = ioremap(LOKE_BOOT_USB_DWNLD_P_ADDR, 4);
 #endif
-	writel(LOKE_BOOT_USB_DWNLDMAGIC_NO, to_io);
+	writel(0xFFFFFFFF, to_io);
 //	iounmap(to_io);
 }
 EXPORT_SYMBOL(kernel_sec_set_upload_magic_number);
@@ -251,7 +252,7 @@ void kernel_sec_set_upload_cause(kernel_sec_upload_cause_type upload_type)
 	upload = readl(to_io);
 	upload &= ~KERNEL_SEC_UPLOAD_CAUSE_MASK;
 	upload |= upload_type;
-	writel(upload, to_io);
+	writel(0xFFFFFFFF, to_io);
 
 	pr_emerg("(kernel_sec_set_upload_cause) : upload_cause set %x\n",
 			upload_type);
@@ -556,7 +557,7 @@ bool kernel_sec_set_debug_level(int level)
 	if (!(level == KERNEL_SEC_DEBUG_LEVEL_LOW 
 			|| level == KERNEL_SEC_DEBUG_LEVEL_MID 
 			|| level == KERNEL_SEC_DEBUG_LEVEL_HIGH)) {
-		printk(KERN_NOTICE "(kernel_sec_set_debug_level) The debug value is \
+		printk_ratelimited(KERN_NOTICE "(kernel_sec_set_debug_level) The debug value is \
 				invalid(0x%x)!! Set default level(LOW)\n", level);
 		debuglevel = KERNEL_SEC_DEBUG_LEVEL_LOW;
 		return 0;
