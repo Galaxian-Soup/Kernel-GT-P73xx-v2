@@ -81,7 +81,7 @@ static struct mpu3050_platform_data p3_mpu3050_pdata = {
 		 * 90 degrees counter-clockwise from natural orientation.
 		 * So X & Y are swapped and Y is negated.
 		 */
-		.orientation = {  0,  1,  0,
+		.orientation = {  0,  -1,  0,
 		  			     -1,  0,  0,
 		 			      0,  0, -1},
 	},
