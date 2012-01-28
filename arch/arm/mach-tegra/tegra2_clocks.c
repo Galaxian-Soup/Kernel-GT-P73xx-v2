@@ -1749,7 +1749,7 @@ static struct clk tegra_pll_u = {
 };
 
 static struct clk_pll_freq_table tegra_pll_x_freq_table[] = {
-
+#if defined(CONFIG_TEGRA_OVERCLOCK)
 	/* 1.646 GHz */
 	{ 12000000, 1646000000, 823, 6, 1, 12},
 	{ 13000000, 1646000000, 1013, 8, 1, 12},
@@ -1773,7 +1773,7 @@ static struct clk_pll_freq_table tegra_pll_x_freq_table[] = {
 	{ 13000000, 1400000000, 969, 9,   1, 12},
 	{ 19200000, 1400000000, 875, 12,  1, 8},
 	{ 26000000, 1400000000, 700, 13,  1, 12},
-
+#endif
 	/* 1.2 GHz */
 	{ 12000000, 1200000000, 600,  6,  1, 12},
 	{ 13000000, 1200000000, 923,  10, 1, 12},
