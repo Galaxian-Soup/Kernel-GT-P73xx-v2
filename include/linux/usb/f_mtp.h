@@ -23,7 +23,6 @@
 #define MTP_INTERFACE_MODE_PTP  1
 
 
-#if defined(CONFIG_ICS)
 struct mtp_data_header {
 	/* length of packet, including this header */
 	uint32_t  length;
@@ -34,7 +33,6 @@ struct mtp_data_header {
 	/* MTP transaction ID */
 	uint32_t  transaction_id;
 };
-#endif
 
 struct mtp_file_range {
 	/* file descriptor for file to transfer */
@@ -43,7 +41,6 @@ struct mtp_file_range {
 	loff_t  	offset;
 	/* number of bytes to transfer */
 	size_t		length;
-#if defined(CONFIG_ICS)
 	/* MTP command ID for data header,
 	 * used only for MTP_SEND_FILE_WITH_HEADER
 	 */
@@ -52,7 +49,6 @@ struct mtp_file_range {
 	 * used only for MTP_SEND_FILE_WITH_HEADER
 	 */
 	uint32_t  transaction_id;
-#endif
 };
 
 struct mtp_event {
@@ -73,8 +69,6 @@ struct mtp_event {
 /* Sends an event to the host via the interrupt endpoint */
 #define MTP_SEND_EVENT             _IOW('M', 3, struct mtp_event)
 
-#if defined(CONFIG_ICS)
 #define MTP_SEND_FILE_WITH_HEADER  _IOW('M', 4, struct mtp_file_range)
-#endif
 
 #endif /* __LINUX_USB_F_MTP_H */

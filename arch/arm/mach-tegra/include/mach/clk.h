@@ -22,7 +22,7 @@
 
 struct dvfs;
 
-#if defined(CONFIG_ICS)
+
 enum tegra_clk_ex_param {
         TEGRA_CLK_VI_INP_SEL,
         TEGRA_CLK_DTV_INVERT,
@@ -31,7 +31,6 @@ enum tegra_clk_ex_param {
         TEGRA_CLK_PLLD_DSI_OUT_ENB,
         TEGRA_CLK_PLLD_MIPI_MUX_SEL,
 };
-#endif
 
 void tegra_periph_reset_deassert(struct clk *c);
 void tegra_periph_reset_assert(struct clk *c);
@@ -39,7 +38,7 @@ void tegra_periph_reset_assert(struct clk *c);
 int tegra_dvfs_set_rate(struct clk *c, unsigned long rate);
 unsigned long clk_get_rate_all_locked(struct clk *c);
 void tegra_sdmmc_tap_delay(struct clk *c, int delay);
-#if defined(CONFIG_ICS)
+
 int tegra_clk_cfg_ex(struct clk *c, enum tegra_clk_ex_param p, u32 setting);
 
 /**
@@ -49,6 +48,5 @@ int tegra_clk_cfg_ex(struct clk *c, enum tegra_clk_ex_param p, u32 setting);
  * Returns refcnt.
  */
 int tegra_is_clk_enabled(struct clk *clk);
-#endif
 
 #endif
