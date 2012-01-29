@@ -30,9 +30,6 @@
 #include <linux/io.h>
 #include <linux/suspend.h>
 #include <linux/debugfs.h>
-#if defined (CONFIG_MACH_SAMSUNG_P5)
-#include <linux/reboot.h>
-#endif
 
 #include <asm/smp_twd.h>
 #include <asm/system.h>
@@ -450,23 +447,6 @@ static struct notifier_block tegra_cpu_pm_notifier = {
 	.notifier_call = tegra_pm_notify,
 };
 
-#if defined (CONFIG_MACH_SAMSUNG_P5)
-static int tegra_cpu_notifier_call(struct notifier_block *this,
-					unsigned long code, void *_cmd)
-{
-	pr_info("%s\n", __func__);
-	mutex_lock(&tegra_cpu_lock);
-	is_suspended = true;
-	mutex_unlock(&tegra_cpu_lock);
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block tegra_cpu_reboot_notifier = {
-	.notifier_call = tegra_cpu_notifier_call,
-};
-#endif
-
 static int tegra_cpu_init(struct cpufreq_policy *policy)
 {
 	if (policy->cpu >= NUM_CPUS)
@@ -488,13 +468,13 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 
 	if (cpufreq_frequency_table_cpuinfo(policy, freq_table)) {
 #if defined(CONFIG_TEGRA_CPU_FREQ_SET_MIN_MAX)
-			policy->cpuinfo.min_freq = CONFIG_TEGRA_CPU_FREQ_MIN;
-			policy->cpuinfo.max_freq = CONFIG_TEGRA_CPU_FREQ_MAX;
+            policy->cpuinfo.min_freq = CONFIG_TEGRA_CPU_FREQ_MIN;
+            policy->cpuinfo.max_freq = CONFIG_TEGRA_CPU_FREQ_MAX;
 #endif
 }
 #if defined(CONFIG_TEGRA_CPU_FREQ_SET_MIN_MAX)
-			policy->min = CONFIG_TEGRA_CPU_FREQ_MIN;
-			policy->max = CONFIG_TEGRA_CPU_FREQ_MAX;
+           policy->min = CONFIG_TEGRA_CPU_FREQ_MIN;
+           policy->max = CONFIG_TEGRA_CPU_FREQ_MAX;
 #endif
 
 	policy->cur = tegra_getspeed(policy->cpu);
@@ -508,9 +488,6 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 
 	if (policy->cpu == 0) {
 		register_pm_notifier(&tegra_cpu_pm_notifier);
-#if defined (CONFIG_MACH_SAMSUNG_P5)
-		register_reboot_notifier(&tegra_cpu_reboot_notifier);
-#endif
 	}
 
 	return 0;

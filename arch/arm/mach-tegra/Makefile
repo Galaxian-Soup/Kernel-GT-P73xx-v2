@@ -139,7 +139,6 @@ obj-${CONFIG_MACH_SAMSUNG_P5}           += board-p5-sensors.o
 obj-${CONFIG_MACH_SAMSUNG_P5}           += board-p5-memory.o
 obj-${CONFIG_MACH_SAMSUNG_P5}           += p5-pinmux-t2-tables.o
 obj-${CONFIG_MACH_SAMSUNG_P5}		+= p5-gpio.o
-obj-${CONFIG_MACH_SAMSUNG_P5}		+= p5-regulator-consumer.o
 
 obj-${CONFIG_MACH_SAMSUNG_VARIATION_TEGRA}           += board-sec-btlpm.o
 obj-${CONFIG_MACH_SAMSUNG_VARIATION_TEGRA}           += board-sec-watchdog.o
