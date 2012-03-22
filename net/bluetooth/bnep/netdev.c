@@ -217,7 +217,7 @@ static int bnep_validate_addr(struct net_device *dev)
 	u8 *addr = dev->dev_addr;
 	/* Make sure the 6th byte is even */
 	if (addr[0] & 0x1) {
-		addr[0]--;
+	  addr[0]--;
 	}
 	return eth_validate_addr(dev);
 }
