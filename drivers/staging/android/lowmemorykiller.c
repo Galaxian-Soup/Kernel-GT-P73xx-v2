@@ -34,6 +34,8 @@
 #include <linux/mm.h>
 #include <linux/oom.h>
 #include <linux/sched.h>
+#include <linux/rcupdate.h>
+#include <linux/profile.h>
 #include <linux/notifier.h>
 
 static uint32_t lowmem_debug_level = 2;
@@ -81,7 +83,7 @@ task_notify_func(struct notifier_block *self, unsigned long val, void *data)
 
 static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 {
-	struct task_struct *p;
+	struct task_struct *tsk;
 	struct task_struct *selected = NULL;
 	int rem = 0;
 	int tasksize;
@@ -131,25 +133,24 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 	}
 	selected_oom_adj = min_adj;
 
-	read_lock(&tasklist_lock);
-	for_each_process(p) {
-		struct mm_struct *mm;
-		struct signal_struct *sig;
+	rcu_read_lock();
+	for_each_process(tsk) {
+		struct task_struct *p;
 		int oom_adj;
 
-		task_lock(p);
-		mm = p->mm;
-		sig = p->signal;
-		if (!mm || !sig) {
-			task_unlock(p);
+		if (tsk->flags & PF_KTHREAD)
 			continue;
-		}
-		oom_adj = sig->oom_adj;
+
+		p = find_lock_task_mm(tsk);
+		if (!p)
+			continue;
+
+		oom_adj = p->signal->oom_adj;
 		if (oom_adj < min_adj) {
 			task_unlock(p);
 			continue;
 		}
-		tasksize = get_mm_rss(mm);
+		tasksize = get_mm_rss(p->mm);
 		task_unlock(p);
 		if (tasksize <= 0)
 			continue;
@@ -172,12 +173,12 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 			     selected_oom_adj, selected_tasksize);
 		lowmem_deathpending = selected;
 		lowmem_deathpending_timeout = jiffies + HZ;
-		force_sig(SIGKILL, selected);
+		send_sig(SIGKILL, selected, 0);
 		rem -= selected_tasksize;
 	}
 	lowmem_print(4, "lowmem_shrink %d, %x, return %d\n",
 		     nr_to_scan, gfp_mask, rem);
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	return rem;
 }
 
