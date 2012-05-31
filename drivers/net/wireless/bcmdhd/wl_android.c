@@ -74,6 +74,9 @@
 #define CMD_GETBAND				"GETBAND"
 #define CMD_COUNTRY				"COUNTRY"
 #define CMD_P2P_SET_NOA			"P2P_SET_NOA"
+#if !defined WL_ENABLE_P2P_IF
+#define CMD_P2P_GET_NOA			"P2P_GET_NOA"
+#endif
 #define CMD_P2P_SET_PS			"P2P_SET_PS"
 #define CMD_SET_AP_WPS_P2P_IE	"SET_AP_WPS_P2P_IE"
 
@@ -130,7 +133,7 @@ extern int dhd_os_check_if_up(void *dhdp);
 extern void *bcmsdh_get_drvdata(void);
 
 extern bool ap_fw_loaded;
-#ifdef CUSTOMER_HW2
+#if defined(CUSTOMER_HW2) || defined(CUSTOMER_HW_SAMSUNG)
 extern char iface_name[IFNAMSIZ];
 #endif
 
@@ -560,6 +563,11 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		bytes_written = wl_cfg80211_set_p2p_noa(net, command + skip,
 			priv_cmd.total_len - skip);
 	}
+#if !defined WL_ENABLE_P2P_IF
+	else if (strnicmp(command, CMD_P2P_GET_NOA, strlen(CMD_P2P_GET_NOA)) == 0) {
+		bytes_written = wl_cfg80211_get_p2p_noa(net, command, priv_cmd.total_len);
+	}
+#endif
 	else if (strnicmp(command, CMD_P2P_SET_PS, strlen(CMD_P2P_SET_PS)) == 0) {
 		int skip = strlen(CMD_P2P_SET_PS) + 1;
 		bytes_written = wl_cfg80211_set_p2p_ps(net, command + skip,
@@ -611,11 +619,11 @@ int wl_android_init(void)
 {
 	int ret = 0;
 
-	dhd_msg_level = DHD_ERROR_VAL;
+	dhd_msg_level |= DHD_ERROR_VAL;
 #ifdef ENABLE_INSMOD_NO_FW_LOAD
 	dhd_download_fw_on_driverload = FALSE;
 #endif /* ENABLE_INSMOD_NO_FW_LOAD */
-#ifdef CUSTOMER_HW2
+#if defined(CUSTOMER_HW2) || defined(CUSTOMER_HW_SAMSUNG)
 	if (!iface_name[0]) {
 		memset(iface_name, 0, IFNAMSIZ);
 #if !defined(CONFIG_MACH_SAMSUNG_VARIATION_TEGRA)
@@ -624,7 +632,7 @@ int wl_android_init(void)
 		bcm_strncpy_s(iface_name, IFNAMSIZ, "eth", IFNAMSIZ);
 #endif
 	}
-#endif /* CUSTOMER_HW2 */
+#endif /* CUSTOMER_HW2 || CUSTOMER_HW_SAMSUNG */
 	return ret;
 }
 
@@ -686,7 +694,7 @@ void wl_android_wifictrl_func_del(void)
 	}
 }
 
-void *wl_android_prealloc(int section, unsigned long size)
+void* wl_android_prealloc(int section, unsigned long size)
 {
 	void *alloc_ptr = NULL;
 	if (wifi_control_data && wifi_control_data->mem_prealloc) {
@@ -774,7 +782,11 @@ static int wifi_probe(struct platform_device *pdev)
 			IORESOURCE_IRQ, "bcm4329_wlan_irq");
 	wifi_control_data = wifi_ctrl;
 
+#ifdef POWER_ON_DELAY_4330
+        wifi_set_power(1, 200); /* Power On */
+#else
 	wifi_set_power(1, 0);	/* Power On */
+#endif
 	wifi_set_carddetect(1);	/* CardDetect (0->1) */
 
 	up(&wifi_control_sem);

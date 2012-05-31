@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 316856 2012-02-23 21:44:34Z $
+ * $Id: dhd.h 328934 2012-04-23 05:15:42Z $
  */
 
 /****************
@@ -83,11 +83,16 @@ enum dhd_bus_state {
 #define P2P_GC_ENABLED		0x0020
 #define CONCURENT_MASK		0x00F0
 
+#define MANUFACTRING_FW 	"WLTEST"
+
 /* max sequential rxcntl timeouts to set HANG event */
 #define MAX_CNTL_TIMEOUT  2
 
 #define DHD_SCAN_ACTIVE_TIME	 40 /* ms : Embedded default Active setting from DHD Driver */
 #define DHD_SCAN_PASSIVE_TIME	130 /* ms: Embedded default Passive setting from DHD Driver */
+
+#define DHD_BEACON_TIMEOUT_NORMAL	4
+#define DHD_BEACON_TIMEOUT_HIGH		10
 
 enum dhd_bus_wake_state {
 	WAKE_LOCK_OFF,
@@ -120,7 +125,6 @@ typedef enum  {
 	DHD_IF_CHANGE,
 	DHD_IF_DELETING
 } dhd_if_state_t;
-
 
 #if defined(CONFIG_DHD_USE_STATIC_BUF)
 
@@ -213,9 +217,6 @@ typedef struct dhd_pub {
  *  see target dhd-cdc-sdmmc-panda-cfg80211-icsmr1-gpl-debug in Makefile
  */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_HAS_WAKELOCK)
-	struct wake_lock 	wakelock[WAKE_LOCK_MAX];
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined (CONFIG_HAS_WAKELOCK) */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1
 	struct mutex 	wl_start_stop_lock; /* lock/unlock for Android start/stop */
 	struct mutex 	wl_softap_lock;		 /* lock/unlock for any SoftAP/STA settings */
@@ -244,24 +245,6 @@ typedef struct dhd_cmn {
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP)
 
 	#define DHD_PM_RESUME_WAIT_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
-#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-/* increase wait time because we've seen WiFi sometimes time out if
- * something causes system resume to take longer (maybe another Samsung
- * driver doing something more in it's resume function than it should),
- * and that causes the rest of the WiFi driver to get into a bad state
- * and wind up spinning taking all the CPU time.  Now we have about a
- * 10ms delay * 1000 retries, or 10 seconds.
- */
-        #define _DHD_PM_RESUME_WAIT(a, b) do {\
-                        int retry = 0; \
-                        SMP_RD_BARRIER_DEPENDS(); \
-                        while (dhd_mmc_suspend && retry++ != b) { \
-                                SMP_RD_BARRIER_DEPENDS(); \
-                                wait_event_interruptible_timeout(a, !dhd_mmc_suspend, msecs_to_jiffies(10)); \
-                        } \
-                } while (0)
-        #define DHD_PM_RESUME_WAIT(a)           _DHD_PM_RESUME_WAIT(a, 1000)
-#else
 	#define _DHD_PM_RESUME_WAIT(a, b) do {\
 			int retry = 0; \
 			SMP_RD_BARRIER_DEPENDS(); \
@@ -271,23 +254,8 @@ typedef struct dhd_cmn {
 			} \
 		} while (0)
 	#define DHD_PM_RESUME_WAIT(a) 		_DHD_PM_RESUME_WAIT(a, 200)
-#endif /* CONFIG_MACH_SAMSUNG_VARIATION_TEGRA */
-
 	#define DHD_PM_RESUME_WAIT_FOREVER(a) 	_DHD_PM_RESUME_WAIT(a, ~0)
-#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-
-#define DHD_PM_RESUME_RETURN_ERROR(a)   do { \
-        if (dhd_mmc_suspend) { \
-                pr_err("%s: suspend timeout\n", __func__);\
-                return a; \
-        } \
-} while (0)
-
-#else
-
 	#define DHD_PM_RESUME_RETURN_ERROR(a)	do { if (dhd_mmc_suspend) return a; } while (0)
-
-#endif
 	#define DHD_PM_RESUME_RETURN		do { if (dhd_mmc_suspend) return; } while (0)
 
 	#define DHD_SPINWAIT_SLEEP_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
@@ -330,7 +298,8 @@ void dhd_os_spin_unlock(dhd_pub_t *pub, unsigned long flags);
 extern int dhd_os_wake_lock(dhd_pub_t *pub);
 extern int dhd_os_wake_unlock(dhd_pub_t *pub);
 extern int dhd_os_wake_lock_timeout(dhd_pub_t *pub);
-extern int dhd_os_wake_lock_timeout_enable(dhd_pub_t *pub, int val);
+extern int dhd_os_wake_lock_rx_timeout_enable(dhd_pub_t *pub, int val);
+extern int dhd_os_wake_lock_ctrl_timeout_enable(dhd_pub_t *pub, int val);
 
 inline static void MUTEX_LOCK_SOFTAP_SET_INIT(dhd_pub_t * dhdp)
 {
@@ -356,8 +325,8 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 #define DHD_OS_WAKE_LOCK(pub) 			dhd_os_wake_lock(pub)
 #define DHD_OS_WAKE_UNLOCK(pub) 		dhd_os_wake_unlock(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT(pub)		dhd_os_wake_lock_timeout(pub)
-#define DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(pub, val)	dhd_os_wake_lock_timeout_enable(pub, val)
-
+#define DHD_OS_WAKE_LOCK_RX_TIMEOUT_ENABLE(pub, val)	dhd_os_wake_lock_rx_timeout_enable(pub, val)
+#define DHD_OS_WAKE_LOCK_CTRL_TIMEOUT_ENABLE(pub, val)	dhd_os_wake_lock_ctrl_timeout_enable(pub, val)
 #define DHD_PACKET_TIMEOUT_MS	1000
 #define DHD_EVENT_TIMEOUT_MS	1500
 
@@ -479,6 +448,8 @@ extern int dhd_dev_get_pno_status(struct net_device *dev);
 #define DHD_BROADCAST_FILTER_NUM	1
 #define DHD_MULTICAST4_FILTER_NUM	2
 #define DHD_MULTICAST6_FILTER_NUM	3
+#define DHD_MDNS_FILTER_NUM		4
+extern int dhd_os_set_packet_filter(dhd_pub_t *dhdp, int val);
 extern int net_os_set_packet_filter(struct net_device *dev, int val);
 extern int net_os_rxfilter_add_remove(struct net_device *dev, int val, int num);
 
@@ -542,7 +513,8 @@ extern uint dhd_bus_status(dhd_pub_t *dhdp);
 extern int  dhd_bus_start(dhd_pub_t *dhdp);
 extern int dhd_bus_membytes(dhd_pub_t *dhdp, bool set, uint32 address, uint8 *data, uint size);
 extern void dhd_print_buf(void *pbuf, int len, int bytes_per_line);
-extern bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf);
+extern bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf, int *retval);
+extern uint dhd_bus_chip_id(dhd_pub_t *dhdp);
 
 #if defined(KEEP_ALIVE)
 extern int dhd_keep_alive_onoff(dhd_pub_t *dhd);

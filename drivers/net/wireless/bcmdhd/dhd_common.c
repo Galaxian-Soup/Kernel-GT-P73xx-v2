@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 319098 2012-03-07 01:05:20Z $
+ * $Id: dhd_common.c 329682 2012-04-26 09:20:38Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -300,7 +300,7 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifindex, wl_ioctl_t *ioc, void *buf, int le
 	dhd_os_proto_block(dhd_pub);
 
 	ret = dhd_prot_ioctl(dhd_pub, ifindex, ioc, buf, len);
-	if (!ret)
+	if (ret)
 		dhd_os_check_hang(dhd_pub, ifindex, ret);
 
 	dhd_os_proto_unblock(dhd_pub);
@@ -995,6 +995,9 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 	reason = ntoh32_ua((void *)&event->reason);
 	datalen = ntoh32_ua((void *)&event->datalen);
 	evlen = datalen + sizeof(bcm_event_t);
+
+	DHD_TRACE(("RX: event_type:%d flags:%d status:%d reason:%d \n",
+								type, flags, status, reason));
 
 	switch (type) {
 #ifdef PROP_TXSTATUS
@@ -1723,17 +1726,21 @@ fail:
 
 /*
  * returns = TRUE if associated, FALSE if not associated
+ * third paramter retval can return error from error
  */
-bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf)
+bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf, int *retval)
 {
 	char bssid[6], zbuf[6];
-	int ret = -1;
+	int ret;
 
 	bzero(bssid, 6);
 	bzero(zbuf, 6);
 
 	ret  = dhd_wl_ioctl_cmd(dhd, WLC_GET_BSSID, (char *)&bssid, ETHER_ADDR_LEN, FALSE, 0);
 	DHD_TRACE((" %s WLC_GET_BSSID ioctl res = %d\n", __FUNCTION__, ret));
+
+	if (retval)
+		*retval = ret;
 
 	if (ret == BCME_NOTASSOCIATED) {
 		DHD_TRACE(("%s: not associated! res:%d\n", __FUNCTION__, ret));
@@ -1771,7 +1778,7 @@ dhd_get_dtim_skip(dhd_pub_t *dhd)
 		bcn_li_dtim = dhd->dtim_skip;
 
 	/* Check if associated */
-	if (dhd_is_associated(dhd, NULL) == FALSE) {
+	if (dhd_is_associated(dhd, NULL, NULL) == FALSE) {
 		DHD_TRACE(("%s NOT assoc ret %d\n", __FUNCTION__, ret));
 		goto exit;
 	}
@@ -1884,11 +1891,11 @@ dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 	memset(iovbuf, 0, sizeof(iovbuf));
 
 #ifndef WL_SCHED_SCAN
-	if ((pfn_enabled) && (dhd_is_associated(dhd, NULL) == TRUE)) {
+	if ((pfn_enabled) && (dhd_is_associated(dhd, NULL, NULL) == TRUE)) {
 		DHD_ERROR(("%s pno is NOT enable : called in assoc mode , ignore\n", __FUNCTION__));
 		return ret;
 	}
-#endif
+#endif /* !WL_SCHED_SCAN */
 
 	/* Enable/disable PNO */
 	if ((ret = bcm_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf, sizeof(iovbuf))) > 0) {
