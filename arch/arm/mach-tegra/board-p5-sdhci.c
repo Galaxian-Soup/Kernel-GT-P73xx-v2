@@ -83,7 +83,7 @@ static struct wifi_platform_data p3_wifi_control = {
 };
 
 static struct platform_device p3_wifi_device = {
-	.name           = "bcm4330_wlan",
+	.name = "bcmdhd_wlan",
 	.id             = 1,
 	.dev            = {
 		.platform_data = &p3_wifi_control,
