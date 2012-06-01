@@ -32,7 +32,6 @@
 #include <mach/iomap.h>
 #include <mach/dc.h>
 #include <mach/fb.h>
-#include <mach/tegra_cpufreq.h>
 #include <mach/gpio-sec.h>
 
 #include "devices.h"
