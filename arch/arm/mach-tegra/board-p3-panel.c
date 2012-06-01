@@ -32,7 +32,6 @@
 #include <mach/iomap.h>
 #include <mach/dc.h>
 #include <mach/fb.h>
-#include <mach/tegra_cpufreq.h>
 #include <mach/gpio-sec.h>
 
 #include "devices.h"
@@ -313,23 +312,14 @@ struct early_suspend p3_panel_early_suspender;
 
 static void p3_panel_early_suspend(struct early_suspend *h)
 {
-	unsigned i;
-	for (i = 0; i < num_registered_fb; i++)
-		fb_blank(registered_fb[i], FB_BLANK_POWERDOWN);
-#ifdef CONFIG_CPU_FREQ
-	cpufreq_save_default_governor();
-	cpufreq_set_conservative_governor();
-#endif
+	if (num_registered_fb > 0)
+		fb_blank(registered_fb[0], FB_BLANK_POWERDOWN);
 }
 
 static void p3_panel_late_resume(struct early_suspend *h)
 {
-	unsigned i;
-	for (i = 0; i < num_registered_fb; i++)
-		fb_blank(registered_fb[i], FB_BLANK_UNBLANK);
-#ifdef CONFIG_CPU_FREQ
-	cpufreq_restore_default_governor();
-#endif
+	if (num_registered_fb > 0)
+		fb_blank(registered_fb[0], FB_BLANK_UNBLANK);
 }
 #endif
 
